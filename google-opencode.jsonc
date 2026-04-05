@@ -1,0 +1,131 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // https://voodisss.github.io/opencode-privacy-fix/
+  "autoupdate": false,
+  "share": "disabled",
+
+  // Default workhorse. Groq Llama gives fast inference with no Google data exposure.
+  // Tab to `plan` for architecture/reasoning sessions, come back for coding.
+  "model": "groq/llama-3.3-70b-versatile",
+
+  // Compaction and session titles only — sees summaries, not raw code.
+  // Swap to "groq/llama-3.1-8b-instant" if you want fully Google-free.
+  "small_model": "google/gemini-2.5-flash-lite",
+
+  "provider": {
+    "google": {
+      "options": { "apiKey": "{env:GOOGLE_API_KEY}" }
+    },
+    "groq": {
+      "options": { "apiKey": "{env:GROQ_API_KEY}" }
+    },
+    "openrouter": {
+      "options": { "apiKey": "{env:OPENROUTER_API_KEY}" }
+    }
+  },
+
+  // ── Permissions ────────────────────────────────────────────────────────────
+  // The container already walls the filesystem to /workspace.
+  // These rules are a second line of defence, kept readable rather than paranoid.
+  "permission": {
+    "*":    "ask",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+
+    // Edits are free inside /workspace — the container boundary is the real guard.
+    "edit": "allow",
+
+    "bash": {
+      "*":             "ask",
+      "git status*":   "allow",
+      "git diff*":     "allow",
+      "git log*":      "allow",
+      "git add*":      "ask",
+      "git commit*":   "ask",
+      "git push*":     "deny",   // never auto-push
+      "git pull*":     "ask",
+      "grep *":        "allow",
+      "find *":        "allow",
+      "cat *":         "allow",
+      "ls *":          "allow",
+      "echo *":        "allow",
+      "rm *":          "deny",
+      "sudo *":        "deny",
+      "curl *":        "ask",
+      "wget *":        "ask"
+    },
+
+    // Container makes this structurally impossible, but belt-and-suspenders.
+    "external_directory": { "*": "deny" },
+
+    "webfetch":  "ask",
+    "websearch": "allow",
+    "doom_loop": "ask"
+  },
+
+  // ── Agents ─────────────────────────────────────────────────────────────────
+  "agent": {
+
+    // PRIMARY 1 — default, Tab to this for all coding work
+    "build": {
+      "mode": "primary",
+      "model": "groq/llama-3.3-70b-versatile",
+      "description": "Main coding agent. Feature work, edits, bug fixes, tests.",
+      "temperature": 0,
+      "color": "accent"
+    },
+
+    // PRIMARY 2 — Tab here for planning, architecture, hard reasoning
+    // Uses Gemini 2.5 Pro: best reasoning quality in the free tier.
+    // Read-only so it can't touch files while thinking.
+    "plan": {
+      "mode": "primary",
+      "model": "google/gemini-2.5-pro",
+      "description": "Architecture, deep analysis, task decomposition. Think before build.",
+      "temperature": 0,
+      "color": "info",
+      "permission": {
+        "edit": "deny",
+        "bash": {
+          "*":         "deny",
+          "git log*":  "allow",
+          "git diff*": "allow"
+        }
+      }
+    },
+
+    // SUBAGENT — auto-invoked for read-only exploration before edits, or @explore
+    "explore": {
+      "mode": "subagent",
+      "model": "google/gemini-2.5-flash",
+      "description": "Read-only codebase exploration: finding files, reading context, searching symbols. Run before edit tasks.",
+      "temperature": 0,
+      "permission": {
+        "edit": "deny",
+        "bash": { "*": "deny" }
+      }
+    },
+
+    // SUBAGENT — hidden, @reason for hard logic or complex refactors
+    // DeepSeek R1 chain-of-thought on Groq: visible reasoning, fast inference.
+    "reason": {
+      "mode": "subagent",
+      "hidden": true,
+      "model": "groq/deepseek-r1-distill-llama-70b",
+      "description": "Reasoning specialist. Algorithmic problems, tricky bugs, complex refactoring.",
+      "temperature": 0.6
+    },
+
+    // SUBAGENT — hidden, @coder for very long file context tasks (262K window)
+    "coder": {
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openrouter/qwen/qwen3-coder:free",
+      "description": "Large coding model with 262K context. Use when file context exceeds normal limits.",
+      "temperature": 0
+    }
+  }
+}

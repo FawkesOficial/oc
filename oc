@@ -1,0 +1,226 @@
+#!/usr/bin/env bash
+# oc — opencode sandbox manager
+#
+# Manages per-project Podman containers for opencode.
+# Each container is isolated to one project directory via volume mount.
+# Containers start on first use and stop automatically when opencode exits.
+#
+# Install:
+#   chmod +x ~/.local/bin/oc
+#   # ensure ~/.local/bin is on your PATH
+
+set -euo pipefail
+
+# ── Constants ──────────────────────────────────────────────────────────────────
+IMAGE="opencode-sandbox:latest"
+CONFIG_DIR="${HOME}/.config/opencode"
+LABEL="oc.managed=true"
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+usage() {
+    cat << EOF
+oc — opencode sandbox manager
+
+Usage:
+  oc [PROJECT_DIR]        Launch opencode in a sandbox for a project (default: cwd)
+  oc list                 Show all managed containers and their status
+  oc stop [PROJECT_DIR]   Stop a running container (default: cwd)
+  oc clean                Remove all stopped managed containers
+  oc logs [PROJECT_DIR]   Tail container logs (default: cwd)
+  oc help                 Show this message
+
+The container name is derived from the project directory name.
+Use the full path to disambiguate projects with the same folder name:
+  oc ~/projects/myapp
+  oc ~/work/myapp
+EOF
+}
+
+# Derive a stable, readable container name from an absolute path.
+# Uses the last two path segments to reduce collisions: proj-myapp, work-api, etc.
+container_name() {
+    local dir="$1"
+    local parent base
+    parent="$(basename "$(dirname "$dir")")"
+    base="$(basename "$dir")"
+    # Strip characters Podman won't accept in names
+    echo "oc-${parent}-${base}" | tr -cs 'a-zA-Z0-9_.-' '-' | sed 's/-*$//'
+}
+
+require_keys() {
+    if [[ -z "${GROQ_API_KEY:-}" ]]; then
+        echo "error: GROQ_API_KEY is not set" >&2
+        echo "  Add it to your shell profile: export GROQ_API_KEY=\"gsk_...\"" >&2
+        exit 1
+    fi
+}
+
+require_image() {
+    if ! podman image exists "$IMAGE" 2> /dev/null; then
+        echo "error: image '$IMAGE' not found." >&2
+        echo "  Build it first:" >&2
+        echo "    podman build --build-arg HOST_UID=\$(id -u) -t $IMAGE $HOME/programming/oc/" >&2
+        exit 1
+    fi
+}
+
+# ── Commands ───────────────────────────────────────────────────────────────────
+
+cmd_launch() {
+    local project_dir
+    project_dir="$(realpath "${1:-$(pwd)}")"
+
+    if [[ ! -d "$project_dir" ]]; then
+        echo "error: directory not found: $project_dir" >&2
+        exit 1
+    fi
+
+    require_keys
+    require_image
+
+    local name
+    name="$(container_name "$project_dir")"
+
+    local status
+    status="$(podman inspect --format '{{.State.Status}}' "$name" 2> /dev/null || echo "absent")"
+
+    case "$status" in
+        running)
+            # Container already running (e.g. another terminal). Attach a new opencode session.
+            echo "→ Attaching to existing sandbox: $name"
+            podman exec -it \
+                -w /workspace \
+                -e TERM="${TERM:-xterm-256color}" \
+                "$name" \
+                opencode
+            ;;
+
+        exited | stopped)
+            # Previous session exited cleanly. Remove the old container and start fresh
+            # so we always boot from the current image (picks up any rebuilds).
+            echo "→ Recreating sandbox: $name"
+            podman rm "$name" > /dev/null
+            cmd_run "$name" "$project_dir"
+            ;;
+
+        absent)
+            echo "→ Creating sandbox: $name"
+            cmd_run "$name" "$project_dir"
+            ;;
+
+        *)
+            echo "error: container '$name' is in unexpected state: $status" >&2
+            exit 1
+            ;;
+    esac
+}
+
+cmd_run() {
+    local name="$1"
+    local project_dir="$2"
+
+    # Run opencode as PID 1. Container exits the moment opencode does.
+    podman run -it \
+        --name "$name" \
+        --hostname "oc-$(basename "$project_dir")" \
+        --label "$LABEL" \
+        --userns=keep-id \
+        \
+        `# Filesystem: project rw, global config ro. Nothing else is visible.` \
+        -v "${project_dir}:/workspace:z,rw" \
+        -v "${CONFIG_DIR}:/config:z,ro" \
+        \
+        `# Secrets injected as env vars — never written to disk inside container.` \
+        -e GROQ_API_KEY="${GROQ_API_KEY}" \
+        -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
+        \
+        `# Terminal passthrough.` \
+        -e TERM="${TERM:-xterm-256color}" \
+        \
+        `# Drop all Linux capabilities. opencode needs none.` \
+        --cap-drop=ALL \
+        --security-opt=no-new-privileges \
+        \
+        "$IMAGE" \
+        opencode
+}
+
+cmd_list() {
+    local containers
+    containers="$(podman ps -a \
+        --filter "label=$LABEL" \
+        --format "table {{.Names}}\t{{.Status}}\t{{.CreatedAt}}" \
+        2> /dev/null)"
+
+    if [[ -z "$containers" ]] || [[ "$containers" == *"NAMES"$'\n' ]]; then
+        echo "No managed sandboxes found."
+        return
+    fi
+
+    echo "$containers"
+}
+
+cmd_stop() {
+    local project_dir
+    project_dir="$(realpath "${1:-$(pwd)}")"
+    local name
+    name="$(container_name "$project_dir")"
+
+    if ! podman container exists "$name" 2> /dev/null; then
+        echo "No sandbox found for: $project_dir"
+        exit 1
+    fi
+
+    local status
+    status="$(podman inspect --format '{{.State.Status}}' "$name")"
+    if [[ "$status" != "running" ]]; then
+        echo "Sandbox '$name' is not running (status: $status)"
+        exit 0
+    fi
+
+    echo "→ Stopping: $name"
+    podman stop "$name"
+}
+
+cmd_clean() {
+    local stopped
+    stopped="$(podman ps -a \
+        --filter "label=$LABEL" \
+        --filter "status=exited" \
+        --format "{{.Names}}" 2> /dev/null)"
+
+    if [[ -z "$stopped" ]]; then
+        echo "Nothing to clean."
+        return
+    fi
+
+    echo "Removing stopped sandboxes:"
+    echo "$stopped" | while read -r name; do
+        echo "  $name"
+        podman rm "$name" > /dev/null
+    done
+}
+
+cmd_logs() {
+    local project_dir
+    project_dir="$(realpath "${1:-$(pwd)}")"
+    local name
+    name="$(container_name "$project_dir")"
+
+    if ! podman container exists "$name" 2> /dev/null; then
+        echo "No sandbox found for: $project_dir"
+        exit 1
+    fi
+
+    podman logs -f "$name"
+}
+
+# ── Dispatch ───────────────────────────────────────────────────────────────────
+case "${1:-}" in
+    list) cmd_list ;;
+    stop) cmd_stop "${2:-}" ;;
+    clean) cmd_clean ;;
+    logs) cmd_logs "${2:-}" ;;
+    help | --help | -h) usage ;;
+    "" | *) cmd_launch "${1:-}" ;;
+esac

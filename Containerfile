@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
+    neovim \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pinned opencode version.
@@ -47,6 +48,9 @@ RUN useradd -m -u ${HOST_UID} -s /bin/bash dev
 RUN mkdir -p /home/dev/.opencode && chown -R dev:dev /home/dev/.opencode
 
 USER dev
+
+RUN mkdir -p ~/.config/nvim && echo 'colorscheme default' > ~/.config/nvim/init.vim
+
 WORKDIR /workspace
 
 # Config dir is set via env so opencode looks at the read-only host config mount.
@@ -54,3 +58,4 @@ WORKDIR /workspace
 ENV OPENCODE_CONFIG_DIR=/config
 # Ensure /usr/local/bin is in path (it usually is by default in Debian)
 ENV PATH="/usr/local/bin:${PATH}"
+ENV EDITOR=nvim

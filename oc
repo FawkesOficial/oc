@@ -138,12 +138,15 @@ cmd_run() {
         `# Terminal passthrough.` \
         -e TERM="${TERM:-xterm-256color}" \
         \
+        `# Port exposure for remote access.` \
+        -p 4096:4096 \
+        \
         `# Drop all Linux capabilities. opencode needs none.` \
         --cap-drop=ALL \
         --security-opt=no-new-privileges \
         \
         "$IMAGE" \
-        opencode
+        opencode --port 4096 --hostname "0.0.0.0"
 }
 
 cmd_list() {

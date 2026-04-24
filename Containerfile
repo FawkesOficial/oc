@@ -18,7 +18,7 @@
 FROM debian:bookworm-slim
 
 ARG HOST_UID=1000
-ARG OPENCODE_VERSION=1.3.13
+ARG OPENCODE_VERSION=1.14.22
 
 # Minimal runtime dependencies only.
 # git: needed by opencode for context and by many project workflows.

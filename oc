@@ -119,6 +119,9 @@ cmd_run() {
     local name="$1"
     local project_dir="$2"
 
+    # Ensure required directories exist
+    mkdir -p $HOME/.local/{share,state}/{opencode,opentui}
+
     # Run opencode as PID 1. Container exits the moment opencode does.
     podman run -it \
         --name "$name" \
@@ -130,6 +133,8 @@ cmd_run() {
         -v "${project_dir}:/workspace:z,rw" \
         -v "${CONFIG_DIR}:/config:z,ro" \
         -v "$HOME/.local/share/opencode:/home/dev/.local/share/opencode:z,rw" \
+        -v "$HOME/.local/state/opencode:/home/dev/.local/state/opencode:z,rw" \
+        -v "$HOME/.local/share/opentui:/home/dev/.local/share/opentui:z,rw" \
         \
         `# Secrets injected as env vars — never written to disk inside container.` \
         -e GROQ_API_KEY="${GROQ_API_KEY}" \

@@ -45,8 +45,10 @@ RUN curl -fsSL https://opencode.ai/install | bash -s -- --version ${OPENCODE_VER
 RUN useradd -m -u ${HOST_UID} -s /bin/bash dev
 
 # Ensure the dev user has a home directory for opencode internal state if needed
-# RUN mkdir -p /home/dev/.opencode && chown -R dev:dev /home/dev/.opencode
-RUN mkdir -p /home/dev/.local/{state,share} && chown -R dev:dev /home/dev/
+RUN mkdir -p /home/dev/.local/state/opencode \
+             /home/dev/.local/share/opencode \
+             /home/dev/.local/share/opentui \
+    && chown -R dev:dev /home/dev/
 
 USER dev
 

@@ -24,6 +24,7 @@ oc — opencode sandbox manager
 
 Usage:
   oc [PROJECT_DIR]        Launch opencode in a sandbox for a project (default: cwd)
+  oc attach [PROJECT_DIR] Open a bash shell in a running sandbox (default: cwd)
   oc list                 Show all managed containers and their status
   oc stop [PROJECT_DIR]   Stop a running container (default: cwd)
   oc recreate [PROJECT_DIR]  Rebuild a container from the current image
@@ -179,7 +180,7 @@ exec_opencode() {
 
     podman exec -it \
         -w "/workspace${project_dir}" \
-        -e TERM="${TERM:-xterm-256color}" \
+        -e TERM="xterm-256color" \
         "$name" \
         opencode "/workspace${project_dir}" --port 4096 --hostname "0.0.0.0"
 }
@@ -193,7 +194,7 @@ exec_opencode_attach() {
 
     podman exec -it \
         -w "/workspace${project_dir}" \
-        -e TERM="${TERM:-xterm-256color}" \
+        -e TERM="xterm-256color" \
         "$name" \
         opencode "/workspace${project_dir}"
 }
@@ -289,9 +290,37 @@ cmd_logs() {
     podman logs -f "$name"
 }
 
+cmd_attach() {
+    local project_dir
+    project_dir="$(realpath "${1:-$(pwd)}")"
+    local name
+    name="$(container_name "$project_dir")"
+
+    if ! podman container exists "$name" 2> /dev/null; then
+        echo "No sandbox found for: $project_dir"
+        exit 1
+    fi
+
+    local status
+    status="$(podman inspect --format '{{.State.Status}}' "$name" 2> /dev/null || echo "absent")"
+    if [[ "$status" != "running" ]]; then
+        echo "error: sandbox '$name' is not running (status: $status)" >&2
+        echo "  Start it first with: oc $project_dir" >&2
+        exit 1
+    fi
+
+    echo "→ Attaching to sandbox: $name"
+    podman exec -it \
+        -w "/workspace${project_dir}" \
+        -e TERM="xterm-256color" \
+        "$name" \
+        bash
+}
+
 # ── Dispatch ───────────────────────────────────────────────────────────────────
 case "${1:-}" in
     list) cmd_list ;;
+    attach) cmd_attach "${2:-}" ;;
     stop) cmd_stop "${2:-}" ;;
     recreate) cmd_recreate "${2:-}" ;;
     clean) cmd_clean ;;

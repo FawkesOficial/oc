@@ -1,0 +1,116 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // https://voodisss.github.io/opencode-privacy-fix/
+  "autoupdate": false,
+  "share": "disabled",
+
+  // Default workhorse.
+  "model": "groq/llama-3.3-70b-versatile",
+
+  // Replaced Gemini Flash Lite with Llama 3.2 3B.
+  // It is extremely fast and handles summaries/titles perfectly for zero cost.
+  "small_model": "openrouter/meta-llama/llama-3.2-3b-instruct:free",
+
+  "provider": {
+    "groq": {
+      "options": { "apiKey": "{env:GROQ_API_KEY}" }
+    },
+    "openrouter": {
+      "options": { "apiKey": "{env:OPENROUTER_API_KEY}" }
+    }
+  },
+
+  "permission": {
+    "*":    "ask",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "edit": "allow",
+    "bash": {
+      "*":             "ask",
+      "git status*":   "allow",
+      "git diff*":     "allow",
+      "git log*":      "allow",
+      "git add*":      "ask",
+      "git commit*":   "ask",
+      "git push*":     "deny",
+      "git pull*":     "ask",
+      "grep *":        "allow",
+      "find *":        "allow",
+      "cat *":         "allow",
+      "ls *":          "allow",
+      "echo *":        "allow",
+      "rm *":          "deny",
+      "sudo *":        "deny",
+      "curl *":        "ask",
+      "wget *":        "ask"
+    },
+    "external_directory": { "*": "deny" },
+    "webfetch":  "ask",
+    "websearch": "allow",
+    "doom_loop": "ask"
+  },
+
+  "agent": {
+
+    "build": {
+      "mode": "primary",
+      "model": "groq/llama-3.3-70b-versatile",
+      "description": "Main coding agent. Fast edits and bug fixes.",
+      "temperature": 0,
+      "color": "accent"
+    },
+
+    // PRIMARY 2 — Replaces Gemini 2.5 Pro.
+    // Qwen 3.6 Plus is a frontier-class model with 1M context.
+    // It excels at architecture and repo-level planning.
+    "plan": {
+      "mode": "primary",
+      "model": "openrouter/qwen/qwen3.6-plus:free",
+      "description": "Architecture and task decomposition. 1M context for full-repo planning.",
+      "temperature": 0,
+      "color": "info",
+      "permission": {
+        "edit": "deny",
+        "bash": {
+          "*":         "deny",
+          "git log*":  "allow",
+          "git diff*": "allow"
+        }
+      }
+    },
+
+    // SUBAGENT — Replaces Gemini 2.5 Flash.
+    // Step 3.5 Flash (free) is built on an MoE architecture that is 
+    // incredibly fast for reading context across 256K tokens.
+    "explore": {
+      "mode": "subagent",
+      "model": "openrouter/stepfun/step-3.5-flash:free",
+      "description": "High-speed codebase exploration and symbol searching.",
+      "temperature": 0,
+      "permission": {
+        "edit": "deny",
+        "bash": { "*": "deny" }
+      }
+    },
+
+    "reason": {
+      "mode": "subagent",
+      "hidden": true,
+      "model": "groq/deepseek-r1-distill-llama-70b",
+      "description": "Deep reasoning specialist for complex logic.",
+      "temperature": 0.6
+    },
+
+    // Updated to the 480B version for maximum free intelligence on long files.
+    "coder": {
+      "mode": "subagent",
+      "hidden": true,
+      "model": "openrouter/qwen/qwen3-coder:free",
+      "description": "Massive 480B MoE model for heavy-duty coding tasks.",
+      "temperature": 0
+    }
+  }
+}

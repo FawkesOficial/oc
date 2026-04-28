@@ -141,7 +141,7 @@ cmd_run() {
         -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
         \
         `# Terminal passthrough.` \
-        -e TERM="${TERM:-xterm-256color}" \
+        -e TERM="xterm-256color" \
         \
         `# Port exposure for remote access.` \
         -p 4096:4096 \

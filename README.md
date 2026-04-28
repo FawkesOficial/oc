@@ -1,56 +1,42 @@
 # opencode sandbox setup
 
-Rootless Podman containers for opencode — one per project, isolated to its
-directory, stops automatically when you exit.
+Rootless Podman containers for opencode - one per project, isolated to its
+directory. Containers persist between sessions (runtime installs survive) and
+stop automatically when you exit opencode.
 
 ---
 
-## Directory layout
+## Repo contents
 
-Copy these files to your home directory (preserving the structure):
-
-```
-$HOME/programming/oc/
-    Containerfile          ← image definition
-~/.config/opencode/
-    opencode.json          ← global agent + permission config
-~/.local/bin/
-    oc                     ← shell utility (chmod +x)
-```
+| File            | Purpose                 |
+| --------------- | ----------------------- |
+| `Containerfile` | Podman image definition |
+| `oc`            | Sandbox launcher script |
 
 ---
 
-## First-time setup
+## Setup
 
-### 1. API keys
-
-Add to your `~/.bashrc` or `~/.zshrc`:
+### 1. Install the launcher
 
 ```sh
-export GROQ_API_KEY="gsk_..."                  # required
-export OPENROUTER_API_KEY="sk-or-..."          # for qwen3-coder:free fallback
-export GOOGLE_API_KEY="AIza..."                # for plan agent (Gemini 2.5 Pro)
-
-export PATH="$HOME/.local/bin:$PATH"
+cp oc ~/.local/bin/oc
+chmod +x ~/.local/bin/oc
 ```
 
 ### 2. Build the image
 
+Run from the repo root:
+
 ```sh
 podman build \
   --build-arg HOST_UID=$(id -u) \
-  --build-arg OPENCODE_VERSION=1.1.1 \
+  --build-arg OPENCODE_VERSION=1.14.22 \
   -t opencode-sandbox:latest \
-  $HOME/programming/oc/
+  .
 ```
 
-### 3. Make `oc` executable
-
-```sh
-chmod +x ~/.local/bin/oc
-```
-
-### 4. Launch
+### 3. Launch
 
 ```sh
 cd ~/projects/myproject
@@ -64,79 +50,96 @@ oc ~/work/otherproject     # switch to another project
 
 ## Daily usage
 
-| Command                | What it does                                     |
-|------------------------|--------------------------------------------------|
-| `oc`                   | Launch opencode in sandbox for current directory |
-| `oc ~/path/to/project` | Launch for a specific project                    |
-| `oc list`              | Show all sandboxes and their status              |
-| `oc stop`              | Stop the sandbox for current directory           |
-| `oc stop ~/path`       | Stop a specific sandbox                          |
-| `oc clean`             | Remove all stopped sandbox containers            |
-| `oc logs`              | Tail logs for current directory's sandbox        |
+| Command                     | What it does                                     |
+| --------------------------- | ------------------------------------------------ |
+| `oc`                        | Launch opencode in sandbox for current directory |
+| `oc ~/path/to/project`      | Launch for a specific project                    |
+| `oc attach [PROJECT_DIR]`   | Open a bash shell in a running sandbox           |
+| `oc list`                   | Show all managed containers and their status     |
+| `oc stop [PROJECT_DIR]`     | Stop a running container                         |
+| `oc recreate [PROJECT_DIR]` | Rebuild a container from the current image       |
+| `oc clean`                  | Remove all stopped managed containers            |
+| `oc logs [PROJECT_DIR]`     | Tail container logs                              |
+| `oc help`                   | Show usage message                               |
 
-Containers stop automatically when you exit opencode. `oc` into the same
-project again and it creates a fresh container from the current image.
-
----
-
-## Agents (Tab to switch between primary agents)
-
-| Agent     | Model                        | When to use                                      |
-|-----------|------------------------------|--------------------------------------------------|
-| `build`   | Groq Llama 3.3 70B           | Default. All coding, edits, bug fixes, tests     |
-| `plan`    | Gemini 2.5 Pro               | Architecture, task breakdown, hard reasoning     |
-| `@explore`| Gemini 2.5 Flash             | Read-only codebase exploration (auto or mention) |
-| `@reason` | Groq DeepSeek R1 70B         | Complex logic, tricky bugs, refactoring          |
-| `@coder`  | Qwen3-Coder:free (262K ctx)  | Very long file context tasks                     |
-
-`reason` and `coder` are hidden from autocomplete — call them with `@mention`.
+Containers persist between sessions - packages installed at runtime
+(`sudo apt-get install`) survive. The container stops automatically when
+opencode exits and restarts on next launch. Use `oc recreate` to rebuild
+a container from a fresh image.
 
 ---
 
-## Per-project config
+## What's inside the container
 
-Drop an `opencode.json` in any project root to extend the global config.
-The container already limits edits to `/workspace`, so use these to loosen
-specific bash commands for that project's toolchain:
+The sandbox is based on **Debian Bookworm** with these tools pre-installed:
 
-```jsonc
-// ~/projects/myproject/opencode.json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "permission": {
-    "bash": {
-      "npm run *":   "allow",
-      "npm test":    "allow",
-      "npm install": "ask",
-      "npx *":       "ask"
-    }
-  }
-}
-```
+| Category     | Packages                                                  |
+| ------------ | --------------------------------------------------------- |
+| Version ctrl | `git`, `gh` (GitHub CLI, latest from official repo)       |
+| Editors      | `neovim` (default `$EDITOR`)                              |
+| Python       | `python3`, `python3-pip`, `python3-venv`                  |
+| Utilities    | `curl`, `jq`, `less`, `procps`, `findutils`, `util-linux` |
+| Runtime      | `sudo` (passwordless for `dev` user)                      |
+
+The `dev` user is created with the same UID as your host user, so volume
+mount permissions match seamlessly.
+
+---
+
+## Container architecture
+
+Each sandbox is a persistent Podman container with `sleep infinity` as PID 1.
+Opencode runs via `podman exec`, so the container stays alive between sessions.
+
+**Volume mounts:**
+
+| Host path                  | Container path                     | Mode | Purpose                     |
+| -------------------------- | ---------------------------------- | ---- | --------------------------- |
+| `<project-dir>`            | `/workspace/<project-dir>`         | rw   | Project files               |
+| `~/.local/share/opencode/` | `/home/dev/.local/share/opencode/` | rw   | Opencode session data       |
+| `~/.local/state/opencode/` | `/home/dev/.local/state/opencode/` | rw   | Opencode state              |
+| `~/.local/share/opentui/`  | `/home/dev/.local/share/opentui/`  | rw   | OpenTUI state               |
+| `~/.config/git/`           | `/home/dev/.config/git/`           | ro   | Git config passthrough      |
+| `~/.config/gh/`            | `/home/dev/.config/gh/`            | ro   | GitHub CLI auth passthrough |
+
+**Environment:**
+
+- `GH_TOKEN` - GitHub CLI auth passthrough (optional, falls back to `gh auth login`)
+- `EDITOR=nvim` - default editor inside the sandbox
+- Port `4096` exposed for remote access to the webapp (available at `http://localhost:4096`)
 
 ---
 
 ## Updating opencode
 
 1. Check the [opencode releases](https://github.com/anomalyco/opencode/releases)
-2. Rebuild the image with a bumped version:
+2. Bump `OPENCODE_VERSION` in `Containerfile`
+3. Rebuild the image (from repo root):
+   
    ```sh
    podman build \
      --build-arg HOST_UID=$(id -u) \
-     --build-arg OPENCODE_VERSION=1.2.0 \
+     --build-arg OPENCODE_VERSION=1.15.0 \
      -t opencode-sandbox:latest \
-     $HOME/programming/oc/
+     .
    ```
-3. Next time you `oc` into a project, a fresh container uses the new image.
-   Running containers are unaffected until they exit naturally.
+4. Recreate existing sandboxes:
+   
+   ```sh
+   oc recreate ~/projects/myproject
+   ```
+   
+   Or let them recreate naturally: running containers are unaffected until
+   they exit, and the next `oc` launch will use the new image.
 
 To also pull fresh OS packages (security updates):
+
 ```sh
 podman build --no-cache \
   --build-arg HOST_UID=$(id -u) \
-  --build-arg OPENCODE_VERSION=1.2.0 \
+  --build-arg OPENCODE_VERSION=1.15.0 \
   -t opencode-sandbox:latest \
-  $HOME/programming/oc/
+  .
 ```
 
 ---
@@ -144,14 +147,14 @@ podman build --no-cache \
 ## What the container can and cannot do
 
 **Can:**
+
 - Read and edit files in `/workspace` (your project directory)
-- Run git commands (allowlisted)
-- Make HTTPS calls to Groq, OpenRouter, Google AI APIs
-- Run project build/test commands you've allowlisted per-project
+- Run git and GitHub CLI commands (config/auth passed through from host)
+- Make HTTPS calls to configured AI providers
+- Install additional packages at runtime via `sudo apt-get install`
+- Run any build/test commands (permission set to `allow` by default)
 
 **Cannot:**
+
 - See your home directory, other projects, SSH keys, `.env` files outside `/workspace`
-- Auto-push to git
-- Run `rm`, `sudo`, or any command not in the allowlist without prompting you
-- Write to the opencode config (mounted read-only)
-- Touch any path outside `/workspace`
+- Touch any path outside `/workspace` (except its own state dirs)

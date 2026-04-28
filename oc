@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# oc — opencode sandbox manager
+# oc - opencode sandbox manager
 #
 # Manages per-project Podman containers for opencode.
 # Each container is isolated to one project directory via volume mount.
@@ -20,7 +20,7 @@ LABEL="oc.managed=true"
 # ── Helpers ────────────────────────────────────────────────────────────────────
 usage() {
     cat << EOF
-oc — opencode sandbox manager
+oc - opencode sandbox manager
 
 Usage:
   oc [PROJECT_DIR]        Launch opencode in a sandbox for a project (default: cwd)
@@ -37,7 +37,7 @@ Use the full path to disambiguate projects with the same folder name:
   oc ~/projects/myapp
   oc ~/work/myapp
 
-Containers persist between sessions — packages installed at runtime (sudo apt-get install)
+Containers persist between sessions - packages installed at runtime (sudo apt-get install)
 survive. The container stops automatically when opencode exits and restarts on next launch.
 Use "oc recreate" to rebuild a container from a fresh image.
 EOF
@@ -148,11 +148,11 @@ cmd_create() {
         -v "$HOME/.local/state/opencode:/home/dev/.local/state/opencode:z,rw" \
         -v "$HOME/.local/share/opentui:/home/dev/.local/share/opentui:z,rw" \
         \
-        `# git config and GitHub CLI auth passthrough (read-only — gh never writes tokens inside the container).` \
+        `# git config and GitHub CLI auth passthrough (read-only - gh never writes tokens inside the container).` \
         -v "$HOME/.config/git:/home/dev/.config/git:z,ro" \
         -v "$HOME/.config/gh:/home/dev/.config/gh:z,ro" \
         \
-        `# Secrets injected as env vars — never written to disk inside container.` \
+        `# Secrets injected as env vars - never written to disk inside container.` \
         -e GROQ_API_KEY="${GROQ_API_KEY}" \
         -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
         -e GH_TOKEN="${GH_TOKEN:-$(gh auth token)}" \
@@ -168,7 +168,7 @@ cmd_create() {
 }
 
 # Launch an interactive opencode session inside a running container.
-# Used for the first launch or after a container restart — starts the server
+# Used for the first launch or after a container restart - starts the server
 # with --port/--hostname so remote access works.
 exec_opencode() {
     local name="$1"

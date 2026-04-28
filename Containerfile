@@ -1,18 +1,18 @@
-# $HOME/programming/oc/Containerfile
+# Containerfile
 #
 # Minimal Debian image for running opencode in a rootless Podman sandbox.
-# Your code never lives here — it's always bind-mounted from the host.
+# Your code never lives here - it's always bind-mounted from the host.
 # Rebuild deliberately when you want a new opencode version or OS updates.
 #
 # The dev user can install additional packages at runtime via:
 #   sudo apt-get update && sudo apt-get install <package>
 #
-# Build:
+# Build (run from the repo root):
 #   podman build \
 #     --build-arg HOST_UID=$(id -u) \
-#     --build-arg OPENCODE_VERSION=1.1.1 \
+#     --build-arg OPENCODE_VERSION=1.14.22 \
 #     -t opencode-sandbox:latest \
-#     $HOME/programming/oc/
+#     .
 #
 # To update opencode: bump OPENCODE_VERSION and rebuild.
 # To update base OS packages: rebuild without cache: add --no-cache to the command above.
@@ -80,7 +80,7 @@ USER dev
 WORKDIR /workspace
 
 # Config dir is set via env so opencode looks at the read-only host config mount.
-# API keys are injected at runtime as env vars — never baked into the image.
+# API keys are injected at runtime as env vars - never baked into the image.
 ENV OPENCODE_CONFIG_DIR=/config
 # Ensure /usr/local/bin is in path (it usually is by default in Debian)
 ENV PATH="/usr/local/bin:${PATH}"

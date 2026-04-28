@@ -163,10 +163,6 @@ cmd_create() {
         `# Port exposure for remote access.` \
         -p 4096:4096 \
         \
-        `# Drop all Linux capabilities. opencode needs none.` \
-        --cap-drop=ALL \
-        --security-opt=no-new-privileges \
-        \
         "$IMAGE" \
         sleep infinity
 }

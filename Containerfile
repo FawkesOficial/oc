@@ -63,7 +63,7 @@ RUN curl -fsSL https://opencode.ai/install | bash -s -- --version ${OPENCODE_VER
 # This prevents volume mount permission mismatches without needing --userns tricks.
 RUN useradd -m -u ${HOST_UID} -s /bin/bash dev && \
     # Allow dev to install packages at runtime without a password.
-    echo 'dev ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/dpkg' > /etc/sudoers.d/dev
+    echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
 
 # Ensure the dev user has a home directory for opencode internal state if needed
 # and a placeholder for gh config (populated via bind-mount at runtime).

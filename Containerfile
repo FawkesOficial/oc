@@ -4,6 +4,9 @@
 # Your code never lives here — it's always bind-mounted from the host.
 # Rebuild deliberately when you want a new opencode version or OS updates.
 #
+# The dev user can install additional packages at runtime via:
+#   sudo apt-get update && sudo apt-get install <package>
+#
 # Build:
 #   podman build \
 #     --build-arg HOST_UID=$(id -u) \
@@ -20,17 +23,33 @@ FROM debian:bookworm-slim
 ARG HOST_UID=1000
 ARG OPENCODE_VERSION=1.14.22
 
-# Minimal runtime dependencies only.
-# git: needed by opencode for context and by many project workflows.
-# ca-certificates: TLS for outbound API calls.
-# curl: opencode install script + occasional project use.
-# No compilers, no package managers beyond what projects mount in from the host.
+# Base tools + apt cache kept so dev user can install more packages at runtime.
+# procps: ps, top, pgrep, pkill
+# findutils: find, xargs
+# util-linux: lsblk, mount, renice, etc.
+# less, jq: common CLI utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
     neovim \
-    && rm -rf /var/lib/apt/lists/*
+    python3 \
+    python3-pip \
+    python3-venv \
+    sudo \
+    procps \
+    findutils \
+    util-linux \
+    less \
+    jq
+
+# Install gh CLI from official GitHub repo (bookworm's version is stale).
+RUN mkdir -p -m 755 /etc/apt/keyrings && \
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
+        dd of=/etc/apt/keyrings/githubcli-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | \
+        tee /etc/apt/sources.list.d/github-cli.list > /dev/null && \
+    apt-get update && apt-get install -y --no-install-recommends gh
 
 # Install pinned opencode version.
 # Pinned so that rebuilding the image is a deliberate, reviewable act.
@@ -42,17 +61,21 @@ RUN curl -fsSL https://opencode.ai/install | bash -s -- --version ${OPENCODE_VER
 
 # Create a non-root user whose UID matches the host user.
 # This prevents volume mount permission mismatches without needing --userns tricks.
-RUN useradd -m -u ${HOST_UID} -s /bin/bash dev
+RUN useradd -m -u ${HOST_UID} -s /bin/bash dev && \
+    # Allow dev to install packages at runtime without a password.
+    echo 'dev ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/dpkg' > /etc/sudoers.d/dev
 
 # Ensure the dev user has a home directory for opencode internal state if needed
-RUN mkdir -p /home/dev/.local/state/opencode \
+# and a placeholder for gh config (populated via bind-mount at runtime).
+RUN mkdir -p /home/dev/.config/gh \
+             /home/dev/.config/nvim \
+             /home/dev/.local/state/opencode \
              /home/dev/.local/share/opencode \
              /home/dev/.local/share/opentui \
-    && chown -R dev:dev /home/dev/
+    && chown -R dev:dev /home/dev/ \
+    && echo 'colorscheme default' > /home/dev/.config/nvim/init.vim
 
 USER dev
-
-RUN mkdir -p ~/.config/nvim && echo 'colorscheme default' > ~/.config/nvim/init.vim
 
 WORKDIR /workspace
 

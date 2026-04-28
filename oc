@@ -3,7 +3,8 @@
 #
 # Manages per-project Podman containers for opencode.
 # Each container is isolated to one project directory via volume mount.
-# Containers start on first use and stop automatically when opencode exits.
+# Containers persist between sessions (runtime installs survive) but stop
+# automatically when opencode exits.
 #
 # Install:
 #   chmod +x ~/.local/bin/oc
@@ -25,6 +26,7 @@ Usage:
   oc [PROJECT_DIR]        Launch opencode in a sandbox for a project (default: cwd)
   oc list                 Show all managed containers and their status
   oc stop [PROJECT_DIR]   Stop a running container (default: cwd)
+  oc recreate [PROJECT_DIR]  Rebuild a container from the current image
   oc clean                Remove all stopped managed containers
   oc logs [PROJECT_DIR]   Tail container logs (default: cwd)
   oc help                 Show this message
@@ -33,6 +35,10 @@ The container name is derived from the project directory name.
 Use the full path to disambiguate projects with the same folder name:
   oc ~/projects/myapp
   oc ~/work/myapp
+
+Containers persist between sessions — packages installed at runtime (sudo apt-get install)
+survive. The container stops automatically when opencode exits and restarts on next launch.
+Use "oc recreate" to rebuild a container from a fresh image.
 EOF
 }
 
@@ -86,26 +92,29 @@ cmd_launch() {
 
     case "$status" in
         running)
-            # Container already running (e.g. another terminal). Attach a new opencode session.
-            echo "→ Attaching to existing sandbox: $name"
-            podman exec -it \
-                -w /workspace \
-                -e TERM="${TERM:-xterm-256color}" \
-                "$name" \
-                opencode
+            # Container already running (another terminal has a session).
+            # Attach opencode without --port/--hostname (TUI quirk: if an instance
+            # is already listening, a second one with those flags silently skips the TUI).
+            echo "→ Attaching to sandbox: $name"
+            exec_opencode_attach "$name" "$project_dir"
             ;;
 
         exited | stopped)
-            # Previous session exited cleanly. Remove the old container and start fresh
-            # so we always boot from the current image (picks up any rebuilds).
-            echo "→ Recreating sandbox: $name"
-            podman rm "$name" > /dev/null
-            cmd_run "$name" "$project_dir"
+            # Container exists but is stopped. Start it, run opencode, stop on exit.
+            echo "→ Starting sandbox: $name"
+            podman start "$name" > /dev/null
+            exec_opencode "$name" "$project_dir"
+            echo "→ Stopping sandbox: $name"
+            podman stop --time 1 "$name" > /dev/null 2>&1
             ;;
 
         absent)
+            # First launch. Create the container, run opencode, stop on exit.
             echo "→ Creating sandbox: $name"
-            cmd_run "$name" "$project_dir"
+            cmd_create "$name" "$project_dir"
+            exec_opencode "$name" "$project_dir"
+            echo "→ Stopping sandbox: $name"
+            podman stop --time 1 "$name" > /dev/null 2>&1
             ;;
 
         *)
@@ -115,15 +124,17 @@ cmd_launch() {
     esac
 }
 
-cmd_run() {
+# Create a persistent container. PID 1 is `sleep infinity` so the container
+# exists as a stable unit that can be started/stopped. Opencode runs via
+# `podman exec` and the container is stopped when the session ends.
+cmd_create() {
     local name="$1"
     local project_dir="$2"
 
-    # Ensure required directories exist
+    # Ensure required directories exist on the host
     mkdir -p $HOME/.local/{share,state}/{opencode,opentui}
 
-    # Run opencode as PID 1. Container exits the moment opencode does.
-    podman run -it \
+    podman run -d \
         --name "$name" \
         --hostname "oc-$(basename "$project_dir")" \
         --label "$LABEL" \
@@ -136,9 +147,14 @@ cmd_run() {
         -v "$HOME/.local/state/opencode:/home/dev/.local/state/opencode:z,rw" \
         -v "$HOME/.local/share/opentui:/home/dev/.local/share/opentui:z,rw" \
         \
+        `# git config and GitHub CLI auth passthrough (read-only — gh never writes tokens inside the container).` \
+        -v "$HOME/.config/git:/home/dev/.config/git:z,ro" \
+        -v "$HOME/.config/gh:/home/dev/.config/gh:z,ro" \
+        \
         `# Secrets injected as env vars — never written to disk inside container.` \
         -e GROQ_API_KEY="${GROQ_API_KEY}" \
         -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
+        -e GH_TOKEN="${GH_TOKEN:-}" \
         \
         `# Terminal passthrough.` \
         -e TERM="xterm-256color" \
@@ -151,7 +167,35 @@ cmd_run() {
         --security-opt=no-new-privileges \
         \
         "$IMAGE" \
+        sleep infinity
+}
+
+# Launch an interactive opencode session inside a running container.
+# Used for the first launch or after a container restart — starts the server
+# with --port/--hostname so remote access works.
+exec_opencode() {
+    local name="$1"
+    local project_dir="$2"
+
+    podman exec -it \
+        -w "/workspace${project_dir}" \
+        -e TERM="${TERM:-xterm-256color}" \
+        "$name" \
         opencode "/workspace${project_dir}" --port 4096 --hostname "0.0.0.0"
+}
+
+# Attach to an already-running opencode instance.
+# Omits --port/--hostname because the server is already listening;
+# including them would cause opencode to skip the TUI.
+exec_opencode_attach() {
+    local name="$1"
+    local project_dir="$2"
+
+    podman exec -it \
+        -w "/workspace${project_dir}" \
+        -e TERM="${TERM:-xterm-256color}" \
+        "$name" \
+        opencode "/workspace${project_dir}"
 }
 
 cmd_list() {
@@ -188,7 +232,28 @@ cmd_stop() {
     fi
 
     echo "→ Stopping: $name"
-    podman stop "$name"
+    podman stop --time 1 "$name" > /dev/null 2>&1
+}
+
+cmd_recreate() {
+    local project_dir
+    project_dir="$(realpath "${1:-$(pwd)}")"
+
+    if [[ ! -d "$project_dir" ]]; then
+        echo "error: directory not found: $project_dir" >&2
+        exit 1
+    fi
+
+    require_keys
+    require_image
+
+    local name
+    name="$(container_name "$project_dir")"
+
+    echo "→ Recreating sandbox from current image: $name"
+    podman rm -f "$name" > /dev/null 2>&1 || true
+    cmd_create "$name" "$project_dir"
+    exec_opencode "$name" "$project_dir"
 }
 
 cmd_clean() {
@@ -228,6 +293,7 @@ cmd_logs() {
 case "${1:-}" in
     list) cmd_list ;;
     stop) cmd_stop "${2:-}" ;;
+    recreate) cmd_recreate "${2:-}" ;;
     clean) cmd_clean ;;
     logs) cmd_logs "${2:-}" ;;
     help | --help | -h) usage ;;

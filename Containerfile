@@ -69,6 +69,7 @@ RUN useradd -m -u ${HOST_UID} -s /bin/bash dev && \
 # and a placeholder for gh config (populated via bind-mount at runtime).
 RUN mkdir -p /home/dev/.config/gh \
              /home/dev/.config/nvim \
+             /home/dev/.config/opencode \
              /home/dev/.local/state/opencode \
              /home/dev/.local/share/opencode \
              /home/dev/.local/share/opentui \
@@ -79,9 +80,7 @@ USER dev
 
 WORKDIR /workspace
 
-# Config dir is set via env so opencode looks at the read-only host config mount.
 # API keys are injected at runtime as env vars - never baked into the image.
-ENV OPENCODE_CONFIG_DIR=/config
 # Ensure /usr/local/bin is in path (it usually is by default in Debian)
 ENV PATH="/usr/local/bin:${PATH}"
 ENV EDITOR=nvim

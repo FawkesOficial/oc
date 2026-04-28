@@ -96,11 +96,15 @@ Opencode runs via `podman exec`, so the container stays alive between sessions.
 | Host path                  | Container path                     | Mode | Purpose                     |
 | -------------------------- | ---------------------------------- | ---- | --------------------------- |
 | `<project-dir>`            | `/workspace/<project-dir>`         | rw   | Project files               |
+| `~/.config/opencode`       | `/home/dev/.config/opencode`       | rw   | Opencode configs            |
 | `~/.local/share/opencode/` | `/home/dev/.local/share/opencode/` | rw   | Opencode session data       |
 | `~/.local/state/opencode/` | `/home/dev/.local/state/opencode/` | rw   | Opencode state              |
 | `~/.local/share/opentui/`  | `/home/dev/.local/share/opentui/`  | rw   | OpenTUI state               |
 | `~/.config/git/`           | `/home/dev/.config/git/`           | ro   | Git config passthrough      |
 | `~/.config/gh/`            | `/home/dev/.config/gh/`            | ro   | GitHub CLI auth passthrough |
+
+> [!NOTE]
+> You might want to keep `~/.config/opencode` mount as read-only (`ro`). Keep it read-write if you want your agent to be able to modify it's own config. It is only recommended to do this if you version control your configs.
 
 **Environment:**
 

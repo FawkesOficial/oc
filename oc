@@ -143,7 +143,7 @@ cmd_create() {
         \
         `# Filesystem: project rw, global config ro, opencode session data rw. Nothing else is visible.` \
         -v "${project_dir}:/workspace${project_dir}:z,rw" \
-        -v "${CONFIG_DIR}:/config:z,ro" \
+        -v "${CONFIG_DIR}:/home/dev/.config/opencode:z,rw" \
         -v "$HOME/.local/share/opencode:/home/dev/.local/share/opencode:z,rw" \
         -v "$HOME/.local/state/opencode:/home/dev/.local/state/opencode:z,rw" \
         -v "$HOME/.local/share/opentui:/home/dev/.local/share/opentui:z,rw" \

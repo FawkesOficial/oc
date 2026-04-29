@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
+    openssh-client \
     neovim \
     python3 \
     python3-pip \
@@ -73,6 +74,7 @@ RUN mkdir -p /home/dev/.config/gh \
              /home/dev/.local/state/opencode \
              /home/dev/.local/share/opencode \
              /home/dev/.local/share/opentui \
+             /home/dev/.ssh \
     && chown -R dev:dev /home/dev/ \
     && echo 'colorscheme default' > /home/dev/.config/nvim/init.vim
 

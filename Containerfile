@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
+    openssh-client \
     neovim \
     python3 \
     python3-pip \
@@ -73,8 +74,15 @@ RUN mkdir -p /home/dev/.config/gh \
              /home/dev/.local/state/opencode \
              /home/dev/.local/share/opencode \
              /home/dev/.local/share/opentui \
+             /home/dev/.ssh \
     && chown -R dev:dev /home/dev/ \
     && echo 'colorscheme default' > /home/dev/.config/nvim/init.vim
+
+# Bake GitHub's SSH host keys into the image so git never prompts for host verification.
+# These are GitHub's published keys - they rarely change.
+RUN ssh-keyscan -t ecdsa,ed25519,rsa github.com > /home/dev/.ssh/known_hosts 2>/dev/null \
+    && chown dev:dev /home/dev/.ssh/known_hosts \
+    && chmod 644 /home/dev/.ssh/known_hosts
 
 USER dev
 

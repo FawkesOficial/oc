@@ -152,6 +152,11 @@ cmd_create() {
         -v "$HOME/.config/git:/home/dev/.config/git:z,ro" \
         -v "$HOME/.config/gh:/home/dev/.config/gh:z,ro" \
         \
+        `# SSH agent socket passthrough - container uses host ssh-agent for git auth.` \
+        `# Only mounted when SSH_AUTH_SOCK is set (i.e. an agent is running).` \
+        ${SSH_AUTH_SOCK:+-v "${SSH_AUTH_SOCK}:/ssh-agent:z,ro"} \
+        -e SSH_AUTH_SOCK="${SSH_AUTH_SOCK:+/ssh-agent}" \
+        \
         `# Secrets injected as env vars - never written to disk inside container.` \
         -e GROQ_API_KEY="${GROQ_API_KEY}" \
         -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \

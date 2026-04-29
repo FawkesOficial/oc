@@ -16,7 +16,6 @@ set -euo pipefail
 IMAGE="opencode-sandbox:latest"
 CONFIG_DIR="${HOME}/.config/opencode"
 LABEL="oc.managed=true"
-SSH_KEY="${OC_SSH_KEY:-id_rsa}"
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 usage() {
@@ -152,10 +151,6 @@ cmd_create() {
         `# git config and GitHub CLI auth passthrough (read-only - gh never writes tokens inside the container).` \
         -v "$HOME/.config/git:/home/dev/.config/git:z,ro" \
         -v "$HOME/.config/gh:/home/dev/.config/gh:z,ro" \
-        \
-        `# SSH config and key for git operations (read-only).` \
-        -v "$HOME/.ssh/config:/home/dev/.ssh/config:z,ro" \
-        -v "$HOME/.ssh/${SSH_KEY}:/home/dev/.ssh/${SSH_KEY}:z,ro" \
         \
         `# Secrets injected as env vars - never written to disk inside container.` \
         -e GROQ_API_KEY="${GROQ_API_KEY}" \

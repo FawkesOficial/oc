@@ -265,6 +265,17 @@ cmd_clean() {
         return
     fi
 
+    echo "The following stopped sandboxes will be removed:"
+    echo "$stopped" | while read -r name; do
+        echo "  $name"
+    done
+    echo ""
+    read -rp "Type YES to confirm: " confirm
+    if [[ "$confirm" != "YES" ]]; then
+        echo "Cancelled."
+        return
+    fi
+
     echo "Removing stopped sandboxes:"
     echo "$stopped" | while read -r name; do
         echo "  $name"

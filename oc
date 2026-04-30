@@ -148,8 +148,7 @@ cmd_create() {
         -v "$HOME/.local/state/opencode:/home/dev/.local/state/opencode:z,rw" \
         -v "$HOME/.local/share/opentui:/home/dev/.local/share/opentui:z,rw" \
         \
-        `# git config and GitHub CLI auth passthrough (read-only - gh never writes tokens inside the container).` \
-        -v "$HOME/.config/git:/home/dev/.config/git:z,ro" \
+        `# GitHub CLI auth passthrough (read-only - gh never writes tokens inside the container).` \
         -v "$HOME/.config/gh:/home/dev/.config/gh:z,ro" \
         \
         `# SSH agent socket passthrough - container uses host ssh-agent for git auth.` \
@@ -170,6 +169,17 @@ cmd_create() {
         \
         "$IMAGE" \
         sleep infinity
+
+    # Inject host git identity into the persistent container (one-time setup).
+    local git_email git_name
+    git_email="$(git config --global user.email 2>/dev/null || true)"
+    git_name="$(git config --global user.name 2>/dev/null || true)"
+    if [[ -n "$git_email" ]]; then
+        podman exec "$name" git config --global user.email "$git_email"
+    fi
+    if [[ -n "$git_name" ]]; then
+        podman exec "$name" git config --global user.name "$git_name"
+    fi
 }
 
 # Launch an interactive opencode session inside a running container.

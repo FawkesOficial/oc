@@ -21,7 +21,7 @@
 FROM debian:bookworm-slim
 
 ARG HOST_UID=1000
-ARG OPENCODE_VERSION=1.14.22
+ARG OPENCODE_VERSION=1.14.33
 
 # Base tools + apt cache kept so dev user can install more packages at runtime.
 # procps: ps, top, pgrep, pkill

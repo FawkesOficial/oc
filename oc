@@ -12,6 +12,11 @@
 
 set -euo pipefail
 
+# ── Configuration ──────────────────────────────────────────────────────────────
+# Set to "true" to enable web server mode (exposes port 4096, adds --port/--hostname).
+# Default is "false" — TUI-only, no port binding, allows multiple sandboxes.
+ENABLE_WEB="${ENABLE_WEB:-false}"
+
 # ── Constants ──────────────────────────────────────────────────────────────────
 IMAGE="opencode-sandbox:latest"
 CONFIG_DIR="${HOME}/.config/opencode"
@@ -31,6 +36,10 @@ Usage:
   oc clean                Remove all stopped managed containers
   oc logs [PROJECT_DIR]   Tail container logs (default: cwd)
   oc help                 Show this message
+
+Environment:
+  ENABLE_WEB=true         Enable web server mode (port 4096, --hostname/--port)
+                          Default: false (TUI-only, allows multiple sandboxes)
 
 The container name is derived from the project directory name.
 Use the full path to disambiguate projects with the same folder name:
@@ -164,8 +173,8 @@ cmd_create() {
         `# Terminal passthrough.` \
         -e TERM="xterm-256color" \
         \
-        `# Port exposure for remote access.` \
-        -p 4096:4096 \
+        `# Port exposure for remote access (only when ENABLE_WEB=true).` \
+        $([ "$ENABLE_WEB" = "true" ] && echo "-p 4096:4096") \
         \
         "$IMAGE" \
         sleep infinity
@@ -184,16 +193,21 @@ cmd_create() {
 
 # Launch an interactive opencode session inside a running container.
 # Used for the first launch or after a container restart - starts the server
-# with --port/--hostname so remote access works.
+# with --port/--hostname when ENABLE_WEB=true.
 exec_opencode() {
     local name="$1"
     local project_dir="$2"
+
+    local web_args=""
+    if [[ "$ENABLE_WEB" = "true" ]]; then
+        web_args="--port 4096 --hostname 0.0.0.0"
+    fi
 
     podman exec -it \
         -w "/workspace${project_dir}" \
         -e TERM="xterm-256color" \
         "$name" \
-        opencode "/workspace${project_dir}" --port 4096 --hostname "0.0.0.0"
+        opencode "/workspace${project_dir}" $web_args
 }
 
 # Attach to an already-running opencode instance.

@@ -54,6 +54,7 @@ oc ~/work/otherproject     # switch to another project
 | --------------------------- | ------------------------------------------------ |
 | `oc`                        | Launch opencode in sandbox for current directory |
 | `oc ~/path/to/project`      | Launch for a specific project                    |
+| `ENABLE_WEB=true oc`        | Same, but with webapp on port 4096 (see below)   |
 | `oc attach [PROJECT_DIR]`   | Open a bash shell in a running sandbox           |
 | `oc list`                   | Show all managed containers and their status     |
 | `oc stop [PROJECT_DIR]`     | Stop a running container                         |
@@ -110,7 +111,10 @@ Opencode runs via `podman exec`, so the container stays alive between sessions.
 
 - `GH_TOKEN` - GitHub CLI auth passthrough (optional, falls back to `gh auth login`)
 - `EDITOR=nvim` - default editor inside the sandbox
-- Port `4096` exposed for remote access to the webapp (available at `http://localhost:4096`)
+- `ENABLE_WEB` - set to `true` to expose port `4096` for webapp access (default: `false`, TUI-only)
+
+> [!WARNING]
+> **`ENABLE_WEB=true` breaks concurrent sandboxes.** Port 4096 can only be bound by one container at a time, so launching a second project will fail with a port-in-use error. Keep it `false` (the default) unless you specifically need the webapp — and only ever use it for one project at a time.
 
 ---
 

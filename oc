@@ -29,7 +29,7 @@ oc - opencode sandbox manager
 
 Usage:
   oc [PROJECT_DIR]        Launch opencode in a sandbox for a project (default: cwd)
-  oc attach [PROJECT_DIR] Open a bash shell in a running sandbox (default: cwd)
+  oc attach|a [PROJECT_DIR] Open a bash shell in a running sandbox (default: cwd)
   oc list                 Show all managed containers and their status
   oc stop [PROJECT_DIR]   Stop a running container (default: cwd)
   oc recreate [PROJECT_DIR]  Rebuild a container from the current image
@@ -356,7 +356,7 @@ cmd_attach() {
 # ── Dispatch ───────────────────────────────────────────────────────────────────
 case "${1:-}" in
     list) cmd_list ;;
-    attach) cmd_attach "${2:-}" ;;
+    attach | a) cmd_attach "${2:-}" ;;
     stop) cmd_stop "${2:-}" ;;
     recreate) cmd_recreate "${2:-}" ;;
     clean) cmd_clean ;;

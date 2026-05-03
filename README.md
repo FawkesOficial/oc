@@ -55,7 +55,7 @@ oc ~/work/otherproject     # switch to another project
 | `oc`                        | Launch opencode in sandbox for current directory |
 | `oc ~/path/to/project`      | Launch for a specific project                    |
 | `ENABLE_WEB=true oc`        | Same, but with webapp on port 4096 (see below)   |
-| `oc attach [PROJECT_DIR]`   | Open a bash shell in a running sandbox           |
+| `oc attach|a [PROJECT_DIR]` | Open a bash shell in a running sandbox           |
 | `oc list`                   | Show all managed containers and their status     |
 | `oc stop [PROJECT_DIR]`     | Stop a running container                         |
 | `oc recreate [PROJECT_DIR]` | Rebuild a container from the current image       |

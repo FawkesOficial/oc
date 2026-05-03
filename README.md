@@ -79,7 +79,8 @@ The sandbox is based on **Debian Bookworm** with these tools pre-installed:
 | Version ctrl | `git`, `gh` (GitHub CLI, latest from official repo)       |
 | Editors      | `neovim` (default `$EDITOR`)                              |
 | Python       | `python3`, `python3-pip`, `python3-venv`                  |
-| Utilities    | `curl`, `jq`, `less`, `procps`, `findutils`, `util-linux` |
+| NodeJS       | `nodejs`, `npm`, `npx`, `bun`                  |
+| Utilities    | `curl`, `jq`, `less`, `procps`, `findutils`, `util-linux`, `uzip` |
 | Runtime      | `sudo` (passwordless for `dev` user)                      |
 
 The `dev` user is created with the same UID as your host user, so volume
@@ -114,7 +115,7 @@ Opencode runs via `podman exec`, so the container stays alive between sessions.
 - `ENABLE_WEB` - set to `true` to expose port `4096` for webapp access (default: `false`, TUI-only)
 
 > [!WARNING]
-> **`ENABLE_WEB=true` breaks concurrent sandboxes.** Port 4096 can only be bound by one container at a time, so launching a second project will fail with a port-in-use error. Keep it `false` (the default) unless you specifically need the webapp — and only ever use it for one project at a time.
+> **`ENABLE_WEB=true` breaks concurrent sandboxes.** Port 4096 can only be bound by one container at a time, so launching a second project will fail with a port-in-use error. Keep it `false` (the default) unless you specifically need the webapp - and only ever use it for one project at a time.
 
 ---
 

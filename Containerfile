@@ -22,12 +22,14 @@ FROM debian:bookworm-slim
 
 ARG HOST_UID=1000
 ARG OPENCODE_VERSION=1.14.33
+ARG BUN_VERSION=1.3.13
 
 # Base tools + apt cache kept so dev user can install more packages at runtime.
 # procps: ps, top, pgrep, pkill
 # findutils: find, xargs
 # util-linux: lsblk, mount, renice, etc.
 # less, jq: common CLI utilities
+# nodejs, npm: Node.js runtime and package manager
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
@@ -37,6 +39,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-venv \
+    nodejs \
+    npm \
+    unzip \
     sudo \
     procps \
     findutils \
@@ -59,6 +64,13 @@ RUN mkdir -p -m 755 /etc/apt/keyrings && \
 RUN curl -fsSL https://opencode.ai/install | bash -s -- --version ${OPENCODE_VERSION} \
     && mv /root/.opencode/bin/opencode /usr/local/bin/opencode \
     && opencode --version
+
+# Install Bun (alongside Node.js/npm/npx).
+# Single static binary - no extra deps.
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" \
+    && ln -s /root/.bun/bin/bun /usr/local/bin/bun \
+    && ln -s /root/.bun/bin/bunx /usr/local/bin/bunx \
+    && bun --version
 
 # Create a non-root user whose UID matches the host user.
 # This prevents volume mount permission mismatches without needing --userns tricks.

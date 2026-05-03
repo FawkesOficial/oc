@@ -14,7 +14,7 @@ set -euo pipefail
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 # Set to "true" to enable web server mode (exposes port 4096, adds --port/--hostname).
-# Default is "false" — TUI-only, no port binding, allows multiple sandboxes.
+# Default is "false" - TUI-only, no port binding, allows multiple sandboxes.
 ENABLE_WEB="${ENABLE_WEB:-false}"
 
 # ── Constants ──────────────────────────────────────────────────────────────────

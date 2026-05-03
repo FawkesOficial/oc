@@ -90,6 +90,14 @@ RUN mkdir -p /home/dev/.config/gh \
     && chown -R dev:dev /home/dev/ \
     && echo 'colorscheme default' > /home/dev/.config/nvim/init.vim
 
+# Wrapper so the dev user can run `gsd-sdk` from anywhere.
+# Forwards all args to the GSD SDK CLI entry-point.
+RUN mkdir -p /usr/local/bin && \
+    printf '#!/bin/sh\nexec node "$HOME/.config/opencode/sdk/dist/cli.js" "$@"\n' > /usr/local/bin/gsd-sdk && \
+    chmod +x /usr/local/bin/gsd-sdk
+
+ENV GSD_AGENTS_DIR=/home/dev/.config/opencode/agents
+
 # Bake GitHub's SSH host keys into the image so git never prompts for host verification.
 # These are GitHub's published keys - they rarely change.
 RUN ssh-keyscan -t ecdsa,ed25519,rsa github.com > /home/dev/.ssh/known_hosts 2>/dev/null \

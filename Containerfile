@@ -5,7 +5,8 @@
 # Rebuild deliberately when you want a new opencode version or OS updates.
 #
 # The dev user can install additional packages at runtime via:
-#   sudo apt-get update && sudo apt-get install <package>
+#   apt-get update && apt-get install <package>
+# (sudo is invoked transparently under the hood - no need to type it.)
 #
 # Build (run from the repo root):
 #   podman build \
@@ -77,8 +78,13 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" \
 # Create a non-root user whose UID matches the host user.
 # This prevents volume mount permission mismatches without needing --userns tricks.
 RUN useradd -m -u ${HOST_UID} -s /bin/bash dev && \
-    # Allow dev to install packages at runtime without a password.
-    echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
+    # Allow dev to run only apt/apt-get as root without a password.
+    echo 'dev ALL=(ALL) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get' > /etc/sudoers.d/dev && \
+    # Wrapper scripts so `apt` and `apt-get` work without typing `sudo`.
+    # /usr/local/bin is ahead of /usr/bin in PATH, so these shadow the real binaries.
+    printf '#!/bin/sh\nexec sudo /usr/bin/apt "$@"\n' > /usr/local/bin/apt && \
+    printf '#!/bin/sh\nexec sudo /usr/bin/apt-get "$@"\n' > /usr/local/bin/apt-get && \
+    chmod +x /usr/local/bin/apt /usr/local/bin/apt-get
 
 # Ensure the dev user has a home directory for opencode internal state if needed
 # and a placeholder for gh config (populated via bind-mount at runtime).

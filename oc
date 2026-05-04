@@ -63,6 +63,13 @@ container_name() {
     echo "oc-${parent}-${base}" | tr -cs 'a-zA-Z0-9_.-' '-' | sed 's/-*$//'
 }
 
+# Derive the container-side mount path from an absolute host path.
+# Uses the last two path segments: /workspace/parent/base
+container_path() {
+    local dir="$1"
+    echo "/workspace/$(basename "$(dirname "$dir")")/$(basename "$dir")"
+}
+
 require_keys() {
     if [[ -z "${GROQ_API_KEY:-}" ]]; then
         echo "error: GROQ_API_KEY is not set" >&2
@@ -140,6 +147,8 @@ cmd_launch() {
 cmd_create() {
     local name="$1"
     local project_dir="$2"
+    local cpath
+    cpath="$(container_path "$project_dir")"
 
     # Ensure required directories exist on the host
     mkdir -p $HOME/.local/{share,state}/{opencode,opentui}
@@ -151,7 +160,7 @@ cmd_create() {
         --userns=keep-id \
         \
         `# Filesystem: project rw, global config ro, opencode session data rw. Nothing else is visible.` \
-        -v "${project_dir}:/workspace${project_dir}:z,rw" \
+        -v "${project_dir}:${cpath}:z,rw" \
         -v "${CONFIG_DIR}:/home/dev/.config/opencode:z,rw" \
         -v "$HOME/.local/share/opencode:/home/dev/.local/share/opencode:z,rw" \
         -v "$HOME/.local/state/opencode:/home/dev/.local/state/opencode:z,rw" \
@@ -197,6 +206,8 @@ cmd_create() {
 exec_opencode() {
     local name="$1"
     local project_dir="$2"
+    local cpath
+    cpath="$(container_path "$project_dir")"
 
     local web_args=""
     if [[ "$ENABLE_WEB" = "true" ]]; then
@@ -204,10 +215,10 @@ exec_opencode() {
     fi
 
     podman exec -it \
-        -w "/workspace${project_dir}" \
+        -w "$cpath" \
         -e TERM="xterm-256color" \
         "$name" \
-        opencode "/workspace${project_dir}" $web_args
+        opencode "$cpath" $web_args
 }
 
 # Attach to an already-running opencode instance.
@@ -216,12 +227,14 @@ exec_opencode() {
 exec_opencode_attach() {
     local name="$1"
     local project_dir="$2"
+    local cpath
+    cpath="$(container_path "$project_dir")"
 
     podman exec -it \
-        -w "/workspace${project_dir}" \
+        -w "$cpath" \
         -e TERM="xterm-256color" \
         "$name" \
-        opencode "/workspace${project_dir}"
+        opencode "$cpath"
 }
 
 cmd_list() {
@@ -345,9 +358,12 @@ cmd_attach() {
         exit 1
     fi
 
+    local cpath
+    cpath="$(container_path "$project_dir")"
+
     echo "→ Attaching to sandbox: $name"
     podman exec -it \
-        -w "/workspace${project_dir}" \
+        -w "$cpath" \
         -e TERM="xterm-256color" \
         "$name" \
         bash

@@ -118,5 +118,5 @@ WORKDIR /workspace
 
 # API keys are injected at runtime as env vars - never baked into the image.
 # Ensure /usr/local/bin is in path (it usually is by default in Debian)
-ENV PATH="/usr/local/bin:${PATH}"
+ENV PATH="/usr/local/bin:/home/dev/.local/bin:${PATH}"
 ENV EDITOR=nvim

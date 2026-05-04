@@ -30,6 +30,7 @@ ARG BUN_VERSION=1.3.13
 # util-linux: lsblk, mount, renice, etc.
 # less, jq: common CLI utilities
 # nodejs, npm: Node.js runtime and package manager
+# ripgrep: rg (fast recursive search)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
@@ -47,7 +48,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     findutils \
     util-linux \
     less \
-    jq
+    jq \
+    ripgrep
 
 # Install gh CLI from official GitHub repo (bookworm's version is stale).
 RUN mkdir -p -m 755 /etc/apt/keyrings && \

@@ -80,7 +80,7 @@ The sandbox is based on **Debian Bookworm** with these tools pre-installed:
 | Editors      | `neovim` (default `$EDITOR`)                              |
 | Python       | `python3`, `python3-pip`, `python3-venv`                  |
 | NodeJS       | `nodejs`, `npm`, `npx`, `bun`                  |
-| Utilities    | `curl`, `jq`, `less`, `procps`, `findutils`, `util-linux`, `uzip` |
+| Utilities    | `curl`, `jq`, `less`, `procps`, `findutils`, `util-linux`, `unzip`, `ripgrep` (`rg`) |
 | Runtime      | `sudo` (passwordless for `dev` user)                      |
 
 The `dev` user is created with the same UID as your host user, so volume

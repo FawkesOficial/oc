@@ -95,6 +95,7 @@ RUN mkdir -p /home/dev/.config/gh \
              /home/dev/.local/share/opencode \
              /home/dev/.local/share/opentui \
              /home/dev/.ssh \
+             /home/dev/.agents \
     && chown -R dev:dev /home/dev/ \
     && echo 'colorscheme default' > /home/dev/.config/nvim/init.vim
 
@@ -105,6 +106,16 @@ RUN mkdir -p /usr/local/bin && \
     chmod +x /usr/local/bin/gsd-sdk
 
 ENV GSD_AGENTS_DIR=/home/dev/.config/opencode/agents
+
+# Install Vercel's agent-browser (https://agent-browser.dev/)
+RUN npm install -g agent-browser \
+ && agent-browser install --with-deps \
+ && cp -r /root/.agent-browser /home/dev \
+ && chown -R dev:dev /home/dev/.agent-browser \
+ && agent-browser doctor \
+ && npx skills add vercel-labs/agent-browser --global --yes \
+ && cp -r /root/.agents/. /home/dev/.agents \
+ && chown -R dev:dev /home/dev/.agents
 
 # Bake GitHub's SSH host keys into the image so git never prompts for host verification.
 # These are GitHub's published keys - they rarely change.

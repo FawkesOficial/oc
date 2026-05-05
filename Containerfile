@@ -52,6 +52,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq \
     ripgrep
 
+# Symlink python -> python3 (Debian bookworm ships python3 only).
+# Install uv (Python package manager from Astral).
+# Install Hatch (Python project manager) via pip3.
+RUN ln -sf /usr/bin/python3 /usr/local/bin/python \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && cp /root/.local/bin/uv /usr/local/bin/uv \
+    && cp /root/.local/bin/uvx /usr/local/bin/uvx \
+    && uv --version \
+    && pip3 install --break-system-packages hatch \
+    && hatch --version
+
 # Install gh CLI from official GitHub repo (bookworm's version is stale).
 RUN mkdir -p -m 755 /etc/apt/keyrings && \
     curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \

@@ -132,6 +132,22 @@ RUN npm install -g agent-browser \
  && cp -r /root/.agents/. /home/dev/.agents \
  && chown -R dev:dev /home/dev/.agents
 
+# Custom AGENTS.md/CLAUDE.md with project-specific guidance. (hack-y patch)
+RUN mkdir -p /home/dev/.claude \
+    && printf '%s\n' \
+        '# Agent Guidelines' \
+        '' \
+        '## You are running in a sandbox' \
+        'You are running inside a sandbox container based on Debian. The host filesystem is **not** accessible — only bind-mounted project directories are available.' \
+        '' \
+        '## Docker commands' \
+        'You do **not** have access to Docker or Podman inside this container. If you need to run a docker/podman command (or any command that invokes Docker under the hood, e.g. `make up`, `docker compose`, etc.), ask the user to run it on the host instead.' \
+        '' \
+        '## Browser automation' \
+        'You have access to the `agent-browser` skill for controlling a headless browser. Use it when testing or debugging web applications. Invoke it via the `skill` tool with `name: "agent-browser"`.' \
+        > /home/dev/.claude/CLAUDE.md \
+    && chown -R dev:dev /home/dev/.claude
+
 # Bake GitHub's SSH host keys into the image so git never prompts for host verification.
 # These are GitHub's published keys - they rarely change.
 RUN ssh-keyscan -t ecdsa,ed25519,rsa github.com > /home/dev/.ssh/known_hosts 2>/dev/null \

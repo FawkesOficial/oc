@@ -86,6 +86,10 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" \
     && ln -s /root/.bun/bin/bunx /usr/local/bin/bunx \
     && bun --version
 
+# Install Pyright LSP (Python static type checker / language server) via npm.
+RUN npm install -g pyright \
+    && pyright --version
+
 # Create a non-root user whose UID matches the host user.
 # This prevents volume mount permission mismatches without needing --userns tricks.
 RUN useradd -m -u ${HOST_UID} -s /bin/bash dev && \

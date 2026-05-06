@@ -90,6 +90,9 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" \
 RUN npm install -g pyright \
     && pyright --version
 
+# Install docker cli (https://stackoverflow.com/a/65588785)
+COPY --from=docker:dind /usr/local/bin/docker /usr/local/bin/
+
 # Create a non-root user whose UID matches the host user.
 # This prevents volume mount permission mismatches without needing --userns tricks.
 RUN useradd -m -u ${HOST_UID} -s /bin/bash dev && \

@@ -50,7 +50,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     util-linux \
     less \
     jq \
-    ripgrep
+    ripgrep \
+    build-essential
 
 # Symlink python -> python3 (Debian bookworm ships python3 only).
 # Install uv (Python package manager from Astral).

@@ -177,6 +177,7 @@ cmd_create() {
         `# Secrets injected as env vars - never written to disk inside container.` \
         -e GROQ_API_KEY="${GROQ_API_KEY}" \
         -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
+        -e CONTEXT7_API_KEY="${CONTEXT7_API_KEY:-}" \
         -e GH_TOKEN="${GH_TOKEN:-$(gh auth token)}" \
         \
         `# Terminal passthrough.` \

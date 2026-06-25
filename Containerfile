@@ -22,8 +22,8 @@
 FROM debian:bookworm-slim
 
 ARG HOST_UID=1000
-ARG OPENCODE_VERSION=1.17.7
-ARG BUN_VERSION=1.3.13
+ARG OPENCODE_VERSION=1.17.10
+ARG BUN_VERSION=1.3.14
 
 # Base tools + apt cache kept so dev user can install more packages at runtime.
 # procps: ps, top, pgrep, pkill
@@ -41,8 +41,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-venv \
-    nodejs \
-    npm \
     unzip \
     sudo \
     procps \
@@ -51,7 +49,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     less \
     jq \
     ripgrep \
-    build-essential
+    build-essential \
+    libgl1-mesa-glx
+
+
+# Install Node.js 22 LTS via NodeSource (Debian bookworm's apt only has v18).
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && node --version && npm --version
 
 # Symlink python -> python3 (Debian bookworm ships python3 only).
 # Install uv (Python package manager from Astral).
@@ -83,8 +88,9 @@ RUN curl -fsSL https://opencode.ai/install | bash -s -- --version ${OPENCODE_VER
 # Install Bun (alongside Node.js/npm/npx).
 # Single static binary - no extra deps.
 RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" \
-    && ln -s /root/.bun/bin/bun /usr/local/bin/bun \
-    && ln -s /root/.bun/bin/bunx /usr/local/bin/bunx \
+    && cp /root/.bun/bin/bun /usr/local/bin/bun \
+    && cp /root/.bun/bin/bunx /usr/local/bin/bunx \
+    && chmod +x /usr/local/bin/bun /usr/local/bin/bunx \
     && bun --version
 
 # Install Pyright LSP (Python static type checker / language server) via npm.

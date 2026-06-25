@@ -163,4 +163,3 @@ WORKDIR /workspace
 # Ensure /usr/local/bin is in path (it usually is by default in Debian)
 ENV PATH="/usr/local/bin:/home/dev/.local/bin:${PATH}"
 ENV EDITOR=nvim
-ENV OPENCODE_ENABLE_EXA=1
